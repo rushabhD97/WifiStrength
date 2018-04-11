@@ -13,10 +13,12 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ProgressBar;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.jjoe64.graphview.GraphView;
@@ -29,11 +31,15 @@ import com.jjoe64.graphview.series.LineGraphSeries;
 import com.jjoe64.graphview.series.OnDataPointTapListener;
 import com.jjoe64.graphview.series.Series;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.util.Calendar;
@@ -49,9 +55,10 @@ public class GraphActivity extends AppCompatActivity {
     long millis;
     int counter=0;
     File contentFile,file;
-//    FileOutputStream fileOutputStream;
- //   OutputStreamWriter outputStreamWriter;
     OutputStream outputStream;
+    InputStream inputStream;
+    TextView titleText,contentText;
+    String content="";
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -68,23 +75,31 @@ public class GraphActivity extends AppCompatActivity {
                 e.printStackTrace();
             }
         }
+        if(!contentFile.exists()){
+            try {
+                contentFile.createNewFile();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
         try {
-//            fileOutputStream=new FileOutputStream(contentFile);
-  //          outputStreamWriter=new OutputStreamWriter(fileOutputStream);
             outputStream=new FileOutputStream(contentFile,true);
-  //          outputStream.write(new String("Hello").getBytes());
-   //         outputStream.toString();
+            inputStream=new FileInputStream(contentFile);
         } catch (IOException e) {
             e.printStackTrace();
         }
 
         wifiManager=(WifiManager)getApplicationContext().getSystemService(WIFI_SERVICE);
         graph=findViewById(R.id.graph);
+        titleText=findViewById(R.id.fileDisplayTitle);
+        contentText=findViewById(R.id.fileContentsView);
         progressBar=findViewById(R.id.progressBar);
         b=findViewById(R.id.reverifyButton);
 
         progressBar.setMax(20);
         progressBar.setVisibility(View.INVISIBLE);
+        if(TextUtils.isEmpty(contentText.getText()))
+            contentText.setText("Refresh to see contents");
 
         LegendRenderer legendRenderer=graph.getLegendRenderer();
         legendRenderer.setFixedPosition(600,0);
@@ -110,13 +125,12 @@ public class GraphActivity extends AppCompatActivity {
     }
     public void onClickVerify(View view){
         wifiInfo=wifiManager.getConnectionInfo();
-        String content;
         if(wifiInfo.getSupplicantState()== SupplicantState.COMPLETED) {
             progressBar.setProgress(0);
             progressBar.setVisibility(View.VISIBLE);
-//        graph.removeAllSeries();
             b.setEnabled(false);
             b.setText("Checking Signal!!");
+            content="";
 
             new Thread() {
                 public void run() {
@@ -124,9 +138,7 @@ public class GraphActivity extends AppCompatActivity {
                     millis = time.getTimeInMillis();
                     try {
                         counter = 0;
-                        String text="At "+Calendar.getInstance().getTime()+"\n";
-                       // fileWriter.append("At "+Calendar.getInstance().getTime());
-//                        outputStreamWriter.append(text);
+                        String text="At "+Calendar.getInstance().getTime()+"\n************\nIP address:"+wifiInfo.getIpAddress()+"\n*********\n";
                         outputStream.write(text.getBytes());
                         while (counter < 20) {
                             Thread.sleep(1000);
@@ -143,6 +155,8 @@ public class GraphActivity extends AppCompatActivity {
                                 }
                             });
                         }
+                        text="\n\n\n\n";
+                        outputStream.write(text.getBytes());
                         series = new LineGraphSeries<>(dataPoints);
                         series.setAnimated(true);
                         series.setColor(Color.rgb(getRandomColor(), getRandomColor(), getRandomColor()));
@@ -172,9 +186,31 @@ public class GraphActivity extends AppCompatActivity {
                 }
 
             }.start();
+//            onClickFetchDetails(titleText);
         }else{
             Toast.makeText(GraphActivity.this, "Wifi Not Connected", Toast.LENGTH_SHORT).show();
         }
+    }
+
+    public void onClickFetchDetails(View view){
+        InputStreamReader inputStreamReader=new InputStreamReader(inputStream);
+        BufferedReader bufferedReader=new BufferedReader(inputStreamReader);
+        String line;
+        try {
+            while((line=bufferedReader.readLine())!=null){
+                content=content+line+"\n";
+            }
+            contentText.setText(content);
+            bufferedReader.close();
+            inputStreamReader.close();
+
+        }catch (IOException io){
+            io.printStackTrace();
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+
+
     }
 
     private int getRandomColor() {
@@ -183,7 +219,6 @@ public class GraphActivity extends AppCompatActivity {
 
     private void addEntry(WifiInfo wifiInfo, int counter) throws IOException {
         if(counter<20) {
-            //fileOutputStream.write();
             Calendar temp=Calendar.getInstance();
             temp.setTimeInMillis(millis+(int)(counter*1000));
             Log.v("ENTRY TIME",temp.toString());
@@ -191,9 +226,7 @@ public class GraphActivity extends AppCompatActivity {
             int m1=temp.get(Calendar.MINUTE);
             int s1=temp.get(Calendar.SECOND);
             progressBar.setProgress(counter+1);
-//            fileWriter.append(h1+" hrs "+m1+" mins "+s1+" secs :"+wifiInfo.getLinkSpeed());
             String text=h1+" hrs "+m1+" mins "+s1+" secs :"+wifiInfo.getLinkSpeed()+"mbps"+ "\n";
-  //          outputStreamWriter.append(text);
             outputStream.write(text.getBytes());
             dataPoints[counter] = new DataPoint(counter, WifiManager.calculateSignalLevel(wifiInfo.getRssi(), 100));
         }else{
@@ -229,6 +262,7 @@ public class GraphActivity extends AppCompatActivity {
         try {
     //        fileOutputStream.close();
             outputStream.close();
+            inputStream.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
