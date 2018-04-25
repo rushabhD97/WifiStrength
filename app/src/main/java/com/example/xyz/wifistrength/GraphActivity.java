@@ -2,6 +2,7 @@ package com.example.xyz.wifistrength;
 
 import android.Manifest;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
@@ -13,6 +14,7 @@ import android.os.Environment;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.text.TextUtils;
@@ -69,27 +71,7 @@ public class GraphActivity extends AppCompatActivity {
             ActivityCompat.requestPermissions(GraphActivity.this,new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},1);
         file=new File(getExternalFilesDir(null),"WifiStrength");
         contentFile=new File(file,"info.txt");
-        if(!file.exists()){
-            file.mkdir();
-            try {
-                contentFile.createNewFile();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-        if(!contentFile.exists()){
-            try {
-                contentFile.createNewFile();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-        try {
-            outputStream=new FileOutputStream(contentFile,true);
-            inputStream=new FileInputStream(contentFile);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        checkFileExists();
 
         wifiManager=(WifiManager)getApplicationContext().getSystemService(WIFI_SERVICE);
         graph=findViewById(R.id.graph);
@@ -125,6 +107,33 @@ public class GraphActivity extends AppCompatActivity {
         viewport.setScrollableY(true);
         viewport.setScrollable(true);
 }
+
+    private void checkFileExists() {
+        if (!file.exists()) {
+            file.mkdir();
+            try {
+                contentFile.createNewFile();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        if (!contentFile.exists()) {
+            try {
+                contentFile.createNewFile();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        try {
+            outputStream = new FileOutputStream(contentFile, true);
+            inputStream = new FileInputStream(contentFile);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+
+    }
+
     public void onClickVerify(View view){
         wifiInfo=wifiManager.getConnectionInfo();
         if(wifiInfo.getSupplicantState()== SupplicantState.COMPLETED) {
@@ -132,6 +141,9 @@ public class GraphActivity extends AppCompatActivity {
             progressBar.setVisibility(View.VISIBLE);
             b.setEnabled(false);
             b.setText("Checking Signal!!");
+            ((Button) findViewById(R.id.openFileButton)).setEnabled(false);
+            ((Button) findViewById(R.id.deleteFileButton)).setEnabled(false);
+            checkFileExists();
             content="";
 
             new Thread() {
@@ -195,6 +207,10 @@ public class GraphActivity extends AppCompatActivity {
     }
 
     public void onClickFetchDetails(View view){
+        if (!contentFile.exists()) {
+            contentText.setText("No file");
+            return;
+        }
         InputStreamReader inputStreamReader=new InputStreamReader(inputStream);
         BufferedReader bufferedReader=new BufferedReader(inputStreamReader);
         String line;
@@ -235,6 +251,9 @@ public class GraphActivity extends AppCompatActivity {
             progressBar.setVisibility(View.INVISIBLE);
             b.setText("Re Check Signal");
             b.setEnabled(true);
+            ((Button) findViewById(R.id.openFileButton)).setEnabled(true);
+            ((Button) findViewById(R.id.deleteFileButton)).setEnabled(true);
+
         }
 
     }
@@ -263,10 +282,36 @@ public class GraphActivity extends AppCompatActivity {
             e.printStackTrace();
         }
     }
-    public void onClickOpenFile(View view){
-        Intent openFileIntent=new Intent(Intent.ACTION_VIEW );
-        openFileIntent.setDataAndType(Uri.fromFile(contentFile),"text/plain");
-        startActivity(Intent.createChooser(openFileIntent,"Open File Using...:p"));
 
+    public void onClickManageFile(View view) {
+        switch (view.getId()) {
+            case R.id.openFileButton:
+                Intent openFileIntent = new Intent(Intent.ACTION_VIEW);
+                openFileIntent.setDataAndType(Uri.fromFile(contentFile), "text/plain");
+                startActivity(Intent.createChooser(openFileIntent, "Open File Using...:p"));
+                break;
+            case R.id.deleteFileButton:
+                new AlertDialog.Builder(this).setTitle("Delete File").setMessage("Are you sure you want to delete file")
+                        .setCancelable(false)
+                        .setPositiveButton("YES", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialogInterface, int i) {
+                                if (contentFile.exists()) {
+                                    contentFile.delete();
+                                    Toast.makeText(GraphActivity.this, "File deleted", Toast.LENGTH_SHORT).show();
+                                } else {
+                                    Toast.makeText(GraphActivity.this, "File Does not exist", Toast.LENGTH_SHORT).show();
+                                }
+                            }
+                        })
+                        .setNegativeButton("No", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialogInterface, int i) {
+                                dialogInterface.cancel();
+                            }
+                        }).create().show();
+                break;
+
+        }
     }
 }
