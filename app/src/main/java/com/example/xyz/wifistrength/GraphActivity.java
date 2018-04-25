@@ -218,7 +218,10 @@ public class GraphActivity extends AppCompatActivity {
             while((line=bufferedReader.readLine())!=null){
                 content=content+line+"\n";
             }
-            contentText.setText(content);
+            if (content.trim().isEmpty())
+                contentText.setText("Empty file");
+            else
+                contentText.setText(content);
             bufferedReader.close();
             inputStreamReader.close();
 
