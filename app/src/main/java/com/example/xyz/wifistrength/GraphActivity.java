@@ -2,8 +2,10 @@ package com.example.xyz.wifistrength;
 
 import android.Manifest;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.net.Uri;
 import android.net.wifi.SupplicantState;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
@@ -122,7 +124,7 @@ public class GraphActivity extends AppCompatActivity {
         viewport.setScalableY(true);
         viewport.setScrollableY(true);
         viewport.setScrollable(true);
-    }
+}
     public void onClickVerify(View view){
         wifiInfo=wifiManager.getConnectionInfo();
         if(wifiInfo.getSupplicantState()== SupplicantState.COMPLETED) {
@@ -236,12 +238,6 @@ public class GraphActivity extends AppCompatActivity {
         }
 
     }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        onClickVerify(findViewById(R.id.reverifyButton));
-    }
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
@@ -266,5 +262,11 @@ public class GraphActivity extends AppCompatActivity {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+    public void onClickOpenFile(View view){
+        Intent openFileIntent=new Intent(Intent.ACTION_VIEW );
+        openFileIntent.setDataAndType(Uri.fromFile(contentFile),"text/plain");
+        startActivity(Intent.createChooser(openFileIntent,"Open File Using...:p"));
+
     }
 }
